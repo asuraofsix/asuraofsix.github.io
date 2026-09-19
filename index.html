@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Вредные привычки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Официальный SDK Telegram Mini Apps: даёт window.Telegram.WebApp и CSS-переменные --tg-* -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* ---------- Токены ---------- */
+:root{
+  /* Запасные значения для запуска вне Telegram (светлая тема) */
+  --d-bg:#f0f1f5; --d-card:#ffffff; --d-text:#16181d; --d-hint:#7a7f8b;
+  --d-sep:rgba(0,0,0,.08); --d-btn:#2481cc; --d-btn-text:#ffffff;
+  --ok:#2ba375; --over:#dd463d;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-scheme="light"]){
+    --d-bg:#0e1013; --d-card:#1a1c21; --d-text:#f1f2f4; --d-hint:#8b909c;
+    --d-sep:rgba(255,255,255,.09); --d-btn:#4ea4f5; --ok:#3cc790; --over:#ff6a60;
+  }
+}
+:root[data-scheme="dark"]{
+  --d-bg:#0e1013; --d-card:#1a1c21; --d-text:#f1f2f4; --d-hint:#8b909c;
+  --d-sep:rgba(255,255,255,.09); --d-btn:#4ea4f5; --ok:#3cc790; --over:#ff6a60;
+}
+:root{
+  /* Цвета берём из темы Telegram, если она есть */
+  --bg:var(--tg-theme-secondary-bg-color,var(--d-bg));
+  --card:var(--tg-theme-section-bg-color,var(--tg-theme-bg-color,var(--d-card)));
+  --text:var(--tg-theme-text-color,var(--d-text));
+  --hint:var(--tg-theme-hint-color,var(--d-hint));
+  --btn:var(--tg-theme-button-color,var(--d-btn));
+  --btn-text:var(--tg-theme-button-text-color,var(--d-btn-text));
+  --sep:var(--d-sep);
+  --track:color-mix(in srgb,var(--hint) 16%,transparent);
+  --ink:color-mix(in srgb,var(--text) 86%,transparent);
+  --safe-top:max(env(safe-area-inset-top,0px),calc(var(--tg-safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px)));
+  --safe-bottom:max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px));
+  --nav-h:58px;
+}
+
+/* ---------- База ---------- */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text)}
+body{
+  font:400 15px/1.4 'Golos Text',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;overscroll-behavior-y:none;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  font-variant-numeric:tabular-nums;
+}
+body.locked{overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:inherit;-webkit-user-select:none;user-select:none}
+button:disabled{cursor:default}
+:focus-visible{outline:2px solid var(--btn);outline-offset:2px}
+.wrap{max-width:520px;margin:0 auto;padding:calc(var(--safe-top) + 18px) 16px calc(var(--nav-h) + var(--safe-bottom) + 28px)}
+.bad{color:var(--over)} .dim{color:var(--hint)}
+
+/* ---------- Заголовок и неделя ---------- */
+.head{margin-bottom:14px}
+.head h1{font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-.025em}
+.head p{color:var(--hint);margin-top:4px}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:18px}
+.day{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;border-radius:14px;min-height:64px}
+.day .dow{font-size:12px;color:var(--hint)}
+.day .dnum{font-size:17px;font-weight:600}
+.day .dot{width:6px;height:6px;border-radius:99px;margin-top:2px;background:transparent}
+.dot.ok{background:var(--ok)} .dot.over{background:var(--over)}
+.dot.part{background:color-mix(in srgb,var(--ok) 45%,transparent)}
+.day[aria-pressed="true"]{background:var(--btn);color:var(--btn-text)}
+.day[aria-pressed="true"] .dow{color:inherit;opacity:.8}
+.day[aria-pressed="true"] .dot.ok,.day[aria-pressed="true"] .dot.part{background:#fff}
+.day[aria-pressed="true"] .dot.over{background:#ffd0cc}
+
+/* ---------- Карточка привычки ---------- */
+.stack{display:grid;gap:10px}
+.card{background:var(--card);border-radius:20px;padding:14px 14px 12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.who{display:flex;align-items:center;gap:12px;min-width:0;flex:1;min-height:44px}
+.bubble{flex:none;width:44px;height:44px;border-radius:99px;display:grid;place-items:center;font-size:22px;
+  background:hsl(var(--h,210) 80% 55% / .17)}
+.who-t{display:grid;min-width:0}
+.who-t b{font-weight:600;font-size:16px}
+.who-t small{color:var(--hint);font-size:13px}
+.who-t small.bad{color:var(--over)}
+.val{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1;white-space:nowrap}
+.row2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;min-height:48px}
+.tally{min-width:0;flex:1;display:flex;align-items:center;gap:8px}
+.tally svg{display:block;flex:none;max-width:100%;height:26px;width:auto;overflow:visible}
+.tally .more{color:var(--over);font-weight:600;font-size:13px}
+.t{fill:none;stroke-width:2.6;stroke-linecap:round}
+.t.ok{stroke:var(--ink)} .t.over{stroke:var(--over)}
+.t.fresh{stroke-dasharray:40;stroke-dashoffset:40;animation:draw .26s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.clean{color:var(--ok);font-weight:600}
+.chip{height:36px;padding:0 14px;border-radius:99px;background:var(--track);font-weight:500}
+.ctrl{display:flex;gap:8px;flex:none}
+.rb{width:48px;height:48px;border-radius:99px;display:grid;place-items:center;font-size:24px;line-height:1;background:var(--track);transition:transform .12s}
+.rb.plus{background:var(--btn);color:var(--btn-text)}
+.rb:active:not(:disabled){transform:scale(.92)}
+.rb:disabled{opacity:.35}
+
+/* ---------- Пустые состояния и скелетон ---------- */
+.empty{text-align:center;padding:36px 12px}
+.empty svg{height:40px;margin:0 auto 18px;display:block;overflow:visible}
+.empty svg .t{stroke:var(--hint);opacity:.6}
+.empty h2{font-size:19px;font-weight:600;margin-bottom:6px}
+.empty p{color:var(--hint);max-width:290px;margin:0 auto 20px}
+.sk{height:132px;border-radius:20px;background:linear-gradient(90deg,var(--card) 0%,color-mix(in srgb,var(--hint) 14%,var(--card)) 50%,var(--card) 100%);background-size:220% 100%;animation:sh 1.3s linear infinite}
+@keyframes sh{to{background-position:-220% 0}}
+
+/* ---------- Кнопки ---------- */
+.btn{display:block;width:100%;height:50px;border-radius:14px;font-weight:600;text-align:center;font-size:16px}
+.btn.primary{background:var(--btn);color:var(--btn-text)}
+.btn.ghost{color:var(--over);margin-top:6px}
+
+/* ---------- Список привычек ---------- */
+.list{background:var(--card);border-radius:20px;overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;width:100%;padding:10px 14px;min-height:64px}
+.item + .item{border-top:1px solid var(--sep)}
+.item .who-t{flex:1}
+.pill{flex:none;font-size:13px;font-weight:600;padding:6px 12px;border-radius:99px}
+.pill.on{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.pill.off{background:var(--track);color:var(--hint)}
+
+/* ---------- Статистика ---------- */
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--track);border-radius:12px;padding:3px;margin-bottom:12px}
+.seg button{height:36px;border-radius:10px;font-weight:600;color:var(--hint);text-align:center}
+.seg button[aria-pressed="true"]{background:color-mix(in srgb,var(--text) 12%,var(--card));color:var(--text)}
+.sum{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;padding:16px}
+.sum .big{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1;white-space:nowrap;flex:none}
+.sum p{color:var(--hint);font-size:14px;line-height:1.3}
+.bars{position:relative;display:flex;align-items:flex-end;gap:var(--gap,6px);height:76px;margin-top:14px}
+.bar{flex:1;min-height:3px;border-radius:5px 5px 2px 2px;background:var(--ok)}
+.bar.over{background:var(--over)} .bar.none{background:var(--track)}
+.limit{position:absolute;left:0;right:0;border-top:1.5px dashed var(--hint);opacity:.7;pointer-events:none}
+.axis{display:flex;justify-content:space-between;gap:var(--gap,6px);margin-top:6px;color:var(--hint);font-size:12px}
+.axis span{flex:1;text-align:center}
+.axis.ends span:first-child{text-align:left} .axis.ends span:last-child{text-align:right}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--sep)}
+.facts dt{color:var(--hint);font-size:12px}
+.facts dd{font-weight:600;font-size:15px}
+
+/* ---------- Нижняя навигация ---------- */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--tg-theme-bottom-bar-bg-color,var(--card));border-top:1px solid var(--sep);padding-bottom:var(--safe-bottom)}
+nav .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);height:var(--nav-h)}
+nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--hint);font-size:12px;font-weight:500;text-align:center}
+nav button[aria-current="page"]{color:var(--btn)}
+nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- Нижний лист ---------- */
+.scrim{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);opacity:0;transition:opacity .22s}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:520px;margin:0 auto;background:var(--tg-theme-bg-color,var(--card));
+  border-radius:28px 28px 0 0;padding:10px 18px calc(var(--safe-bottom) + 18px);transform:translateY(100%);transition:transform .26s cubic-bezier(.2,.8,.2,1)}
+.open .scrim{opacity:1} .open .sheet{transform:none}
+.grab{width:38px;height:4px;border-radius:9px;background:var(--track);margin:0 auto 14px}
+.sheet-head{display:flex;gap:12px;align-items:center;margin-bottom:18px}
+.sheet-head h2{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.sheet-head p{color:var(--hint);font-size:14px}
+.field-label{font-weight:600;margin-bottom:8px}
+.stepper{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--track);border-radius:16px;padding:6px}
+.stepper output{font-size:20px;font-weight:700;flex:1;text-align:center}
+.stepper .rb{background:var(--card);width:46px;height:46px}
+.hint{color:var(--hint);font-size:13px;margin:8px 2px 18px}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<main class="wrap" id="view" aria-live="polite"></main>
+<nav id="nav" aria-label="Разделы"></nav>
+<div id="sheet-root"></div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   Telegram
+   ВАЖНО: initDataUnsafe здесь не используется для доступа к данным.
+   Когда появится backend, на сервер уходит только сырая строка
+   tg.initData, а сервер проверяет подпись по документации Telegram.
+   ===================================================================== */
+const tg = window.Telegram && window.Telegram.WebApp;
+const inTg = !!(tg && tg.initData);
+const ver = v => { try { return inTg && tg.isVersionAtLeast(v); } catch { return false; } };
+
+const haptic = {
+  tap()    { try { if (ver('6.1')) tg.HapticFeedback.impactOccurred('light'); } catch {} },
+  select() { try { if (ver('6.1')) tg.HapticFeedback.selectionChanged(); } catch {} },
+  ok()     { try { if (ver('6.1')) tg.HapticFeedback.notificationOccurred('success'); } catch {} },
+  warn()   { try { if (ver('6.1')) tg.HapticFeedback.notificationOccurred('warning'); } catch {} },
+};
+
+function applyTheme() {
+  if (!inTg) return;
+  document.documentElement.dataset.scheme = tg.colorScheme === 'dark' ? 'dark' : 'light';
+  try {
+    if (ver('6.1')) { tg.setHeaderColor('secondary_bg_color'); tg.setBackgroundColor('secondary_bg_color'); }
+  } catch {}
+}
+
+function initTelegram() {
+  if (!inTg) return;
+  try { tg.ready(); tg.expand(); } catch {}
+  applyTheme();
+  try { tg.onEvent('themeChanged', applyTheme); } catch {}
+  try { if (ver('6.1')) tg.BackButton.onClick(() => { if (state.sheet) closeSheet(); }); } catch {}
+}
+
+function confirmAsk(message, onYes) {
+  if (ver('6.2')) tg.showConfirm(message, ok => ok && onYes());
+  else if (window.confirm(message)) onYes();
+}
+
+/* =====================================================================
+   Справочник привычек (пока константа; позже будет приходить из БД)
+   step — шаг одного нажатия «+», для времени это минуты.
+   def — лимит по умолчанию, max — максимально допустимый лимит.
+   ===================================================================== */
+const HABITS = [
+  { id:'smoking',   name:'Курение',         emoji:'🚬', hue:20,  forms:['сигарета','сигареты','сигарет'], step:1,  def:5,   max:60,  blurb:'Считаем выкуренные сигареты' },
+  { id:'alcohol',   name:'Алкоголь',        emoji:'🍺', hue:42,  forms:['порция','порции','порций'],      step:1,  def:1,   max:30,  blurb:'Бокал, рюмка или кружка — одна порция' },
+  { id:'sweets',    name:'Сладкое',         emoji:'🍬', hue:330, forms:['порция','порции','порций'],      step:1,  def:2,   max:30,  blurb:'Конфеты, выпечка, десерты' },
+  { id:'fastfood',  name:'Фастфуд',         emoji:'🍔', hue:8,   forms:['раз','раза','раз'],              step:1,  def:1,   max:20,  blurb:'Бургеры, шаурма, картошка фри' },
+  { id:'caffeine',  name:'Кофеин',          emoji:'☕', hue:28,  forms:['чашка','чашки','чашек'],         step:1,  def:3,   max:20,  blurb:'Кофе, крепкий чай, энергетики' },
+  { id:'social',    name:'Соцсети',         emoji:'📱', hue:210, time:true,                              step:30, def:120, max:720, blurb:'Время бесцельного скроллинга' },
+  { id:'games',     name:'Видеоигры',       emoji:'🎮', hue:265, time:true,                              step:30, def:120, max:720, blurb:'Время за играми' },
+  { id:'nails',     name:'Грызть ногти',    emoji:'🦷', hue:180, forms:['раз','раза','раз'],              step:1,  def:3,   max:50,  blurb:'Каждый заход — одна отметка' },
+  { id:'latebed',   name:'Поздний отбой',   emoji:'🌙', hue:245, forms:['раз','раза','раз'],              step:1,  def:0,   max:1,   blurb:'Легли спать после полуночи' },
+  { id:'nightsnack',name:'Ночные перекусы', emoji:'🍪', hue:35,  forms:['раз','раза','раз'],              step:1,  def:0,   max:5,   blurb:'Еда после ужина и ночью' },
+];
+const H = Object.fromEntries(HABITS.map(h => [h.id, h]));
+
+/* =====================================================================
+   Утилиты
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const fmtDM   = new Intl.DateTimeFormat('ru-RU', { day:'numeric', month:'long' });
+const fmtDMs  = new Intl.DateTimeFormat('ru-RU', { day:'numeric', month:'short' });
+const fmtWDay = new Intl.DateTimeFormat('ru-RU', { weekday:'long' });
+const fmtWS   = new Intl.DateTimeFormat('ru-RU', { weekday:'short' });
+
+function plural(n, [a, b, c]) {
+  const m = n % 100, d = n % 10;
+  if (m > 10 && m < 20) return c;
+  if (d === 1) return a;
+  return d >= 2 && d <= 4 ? b : c;
+}
+const num = x => String(+x.toFixed(1)).replace('.', ',');
+const hours = m => `${num(m / 60)} ч`;
+const fmt = (h, v) => h.time ? (v < 60 ? `${v} мин` : hours(v)) : `${v} ${plural(v, h.forms)}`;
+
+/* =====================================================================
+   Хранилище. Интерфейс асинхронный, чтобы позже заменить localStorage
+   на запросы к backend, не трогая остальной код.
+   ===================================================================== */
+const Store = {
+  KEY: 'bad-habits:v1',
+  data: { tracked: {}, entries: {} },
+
+  async load() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(this.KEY) || 'null');
+      if (!raw || typeof raw !== 'object') return;
+      for (const [id, t] of Object.entries(raw.tracked || {})) {
+        const lim = Number(t && t.limit);
+        if (H[id] && Number.isFinite(lim)) this.data.tracked[id] = { limit: Math.min(Math.max(0, lim), H[id].max) };
+      }
+      for (const [date, day] of Object.entries(raw.entries || {})) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || typeof day !== 'object') continue;
+        for (const [id, v] of Object.entries(day || {})) {
+          if (H[id] && Number.isFinite(v) && v >= 0) (this.data.entries[date] ||= {})[id] = Math.min(v, 9999);
+        }
+      }
+    } catch {}
+  },
+  save() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch {} },
+
+  get(date, id) { const v = this.data.entries[date] && this.data.entries[date][id]; return v === undefined ? null : v; },
+  set(date, id, v) { (this.data.entries[date] ||= {})[id] = v; this.save(); },
+  track(id, limit) { this.data.tracked[id] = { limit }; this.save(); },
+  untrack(id) { delete this.data.tracked[id]; this.save(); },   // история отметок сохраняется
+  trackedHabits() { return HABITS.filter(h => this.data.tracked[h.id]); },
+  limit(id) { return this.data.tracked[id].limit; },
+};
+
+/* =====================================================================
+   Логика статусов
+   ===================================================================== */
+function status(date, h) {
+  const v = Store.get(date, h.id);
+  if (v === null) return 'none';
+  return v <= Store.limit(h.id) ? 'ok' : 'over';
+}
+function dayStatus(date) {
+  const list = Store.trackedHabits();
+  if (!list.length) return 'none';
+  const s = list.map(h => status(date, h));
+  if (s.includes('over')) return 'over';
+  if (s.every(x => x === 'ok')) return 'ok';
+  return s.some(x => x === 'ok') ? 'part' : 'none';
+}
+function streak(h) {
+  let d = new Date(), n = 0;
+  for (let i = 0; i < 400; i++, d = addDays(d, -1)) {
+    const s = status(dkey(d), h);
+    if (s === 'ok') n++;
+    else if (s === 'none' && i === 0) continue;   // сегодня ещё не отмечено — серию не рвём
+    else break;
+  }
+  return n;
+}
+
+/* =====================================================================
+   Состояние и отрисовка
+   ===================================================================== */
+const state = {
+  loading: true, tab: 'today', range: 7,
+  today: dkey(new Date()), date: dkey(new Date()),
+  sheet: null, draft: 0, fresh: null,
+};
+
+/* Счётные палочки: четыре чёрточки и зачёркивание — одна пятёрка */
+function tallySVG(n, limit, freshLast) {
+  const MAX = 30, shown = Math.min(n, MAX), H_ = 24, gap = 7, gg = 13;
+  let x = 0, out = '';
+  const cls = i => (i >= limit ? 'over' : 'ok') + (freshLast && i === shown - 1 ? ' fresh' : '');
+  for (let g = 0; g * 5 < shown; g++) {
+    const start = g * 5, cnt = Math.min(5, shown - start), v = Math.min(cnt, 4);
+    for (let i = 0; i < v; i++) out += `<line class="t ${cls(start + i)}" x1="${x + i * gap}" y1="2" x2="${x + i * gap}" y2="${H_ - 2}"/>`;
+    if (cnt === 5) out += `<line class="t ${cls(start + 4)}" x1="${x - 4}" y1="${H_ - 4}" x2="${x + 3 * gap + 4}" y2="5"/>`;
+    x += (v - 1) * gap + gg;
+  }
+  const w = x - gg + 8;
+  return `<svg viewBox="-4 0 ${w} ${H_}" width="${w}" height="${H_}" role="img" aria-label="${n}">${out}</svg>` +
+         (n > MAX ? `<span class="more">+${n - MAX}</span>` : '');
+}
+
+function navHTML() {
+  const items = [
+    ['today',  'Сегодня',    '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>'],
+    ['stats',  'Статистика', '<path d="M5 20V11M12 20V5M19 20v-7"/>'],
+    ['habits', 'Привычки',   '<path d="M4 7h16M4 12h16M4 17h10"/>'],
+  ];
+  return `<div class="in">${items.map(([id, label, svg]) =>
+    `<button data-act="tab" data-tab="${id}" ${state.tab === id ? 'aria-current="page"' : ''}>
+       <svg viewBox="0 0 24 24" aria-hidden="true">${svg}</svg>${label}</button>`).join('')}</div>`;
+}
+
+function emptyHTML(text) {
+  return `<div class="empty">${tallySVG(5, 99)}
+    <h2>Пока ничего не отслеживается</h2><p>${text}</p>
+    <button class="btn primary" data-act="tab" data-tab="habits">Выбрать привычки</button></div>`;
+}
+
+/* ---- Экран «Сегодня» ---- */
+function habitCard(h) {
+  const limit = Store.limit(h.id), v = Store.get(state.date, h.id);
+  const over = v !== null && v > limit;
+  const n = v ? Math.round(v / h.step) : 0, lim = Math.round(limit / h.step);
+  const sub = over ? `лимит превышен на ${fmt(h, v - limit)}`
+            : limit === 0 ? 'цель — ни разу' : `до ${fmt(h, limit)} в день`;
+  const valStr = v === null ? '–' : h.time ? (v === 0 ? '0' : v < 60 ? `${v} м` : hours(v)) : v;
+  const isToday = state.date === state.today;
+  const left = v === null
+    ? `<button class="chip" data-act="zero" data-id="${h.id}">${isToday ? 'Сегодня не было' : 'В этот день не было'}</button>`
+    : v === 0 ? `<span class="clean">Чисто ✓</span>`
+    : tallySVG(n, lim, state.fresh === h.id);
+  return `<article class="card" style="--h:${h.hue}">
+    <div class="top">
+      <button class="who" data-act="open" data-id="${h.id}" aria-label="Настроить: ${h.name}">
+        <span class="bubble">${h.emoji}</span>
+        <span class="who-t"><b>${h.name}</b><small class="${over ? 'bad' : ''}">${sub}</small></span>
+      </button>
+      <div class="val ${over ? 'bad' : v === null ? 'dim' : ''}">${valStr}</div>
+    </div>
+    <div class="row2">
+      <div class="tally">${left}</div>
+      <div class="ctrl">
+        <button class="rb" data-act="dec" data-id="${h.id}" aria-label="Убавить" ${v ? '' : 'disabled'}>−</button>
+        <button class="rb plus" data-act="inc" data-id="${h.id}" aria-label="Добавить">+</button>
+      </div>
+    </div></article>`;
+}
+
+function viewToday() {
+  const d = fromKey(state.date), t = fromKey(state.today);
+  const diff = Math.round((t - d) / 864e5);
+  const title = diff === 0 ? 'Сегодня' : diff === 1 ? 'Вчера' : fmtDM.format(d);
+  const week = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6)).map(x => {
+    const k = dkey(x);
+    return `<button class="day" data-act="day" data-date="${k}" aria-pressed="${k === state.date}"
+        aria-label="${fmtDM.format(x)}"><span class="dow">${fmtWS.format(x)}</span>
+        <span class="dnum">${x.getDate()}</span><i class="dot ${dayStatus(k)}"></i></button>`;
+  }).join('');
+  const list = Store.trackedHabits();
+  return `<header class="head"><h1>${title}</h1><p>${cap(fmtWDay.format(d))}, ${fmtDM.format(d)}</p></header>
+    <div class="week">${week}</div>
+    ${list.length ? `<div class="stack">${list.map(habitCard).join('')}</div>`
+                  : emptyHTML('Выберите привычки, которые хотите контролировать, и задайте дневной лимит.')}`;
+}
+
+/* ---- Экран «Статистика» ---- */
+function statCard(h, days) {
+  const limit = Store.limit(h.id);
+  const vals = days.map(k => Store.get(k, h.id));
+  const logged = vals.filter(v => v !== null);
+  const total = logged.reduce((a, b) => a + b, 0);
+  const avg = logged.length ? total / logged.length : null;
+  const okDays = days.filter(k => status(k, h) === 'ok').length;
+  const scale = Math.max(limit, ...logged, h.step);
+  const bars = vals.map(v => v === null ? '<span class="bar none"></span>'
+    : `<span class="bar ${v > limit ? 'over' : ''}" style="height:${v === 0 ? 0 : Math.max(6, v / scale * 100)}%"></span>`).join('');
+  const axis = days.length <= 7
+    ? `<div class="axis">${days.map(k => `<span>${fmtWS.format(fromKey(k))}</span>`).join('')}</div>`
+    : `<div class="axis ends"><span>${fmtDMs.format(fromKey(days[0]))}</span><span>${fmtDMs.format(fromKey(days[days.length - 1]))}</span></div>`;
+  const s = streak(h);
+  return `<article class="card" style="--h:${h.hue}">
+    <div class="who"><span class="bubble">${h.emoji}</span>
+      <span class="who-t"><b>${h.name}</b><small>${limit === 0 ? 'цель — ни разу' : `лимит ${fmt(h, limit)} в день`}</small></span></div>
+    <div class="bars" style="--gap:${days.length > 7 ? 3 : 6}px">${bars}${limit > 0 && limit <= scale ? `<i class="limit" style="bottom:${limit / scale * 100}%"></i>` : ''}</div>
+    ${axis}
+    <dl class="facts">
+      <div><dt>В среднем</dt><dd>${avg === null ? '–' : h.time ? fmt(h, Math.round(avg)) : num(avg)}</dd></div>
+      <div><dt>В лимите</dt><dd>${logged.length ? `${okDays} из ${logged.length}` : '–'}</dd></div>
+      <div><dt>Серия</dt><dd>${s} дн.</dd></div>
+    </dl></article>`;
+}
+
+function viewStats() {
+  const list = Store.trackedHabits();
+  const head = `<header class="head"><h1>Статистика</h1><p>Как идут дела за период</p></header>`;
+  if (!list.length) return head + emptyHTML('Когда начнёте отмечать привычки, здесь появятся графики и серии.');
+  const t = fromKey(state.today);
+  const days = Array.from({ length: state.range }, (_, i) => dkey(addDays(t, i - state.range + 1)));
+  const st = days.map(dayStatus).filter(s => s !== 'none');
+  const good = st.filter(s => s !== 'over').length;
+  return head + `
+    <div class="seg" role="group" aria-label="Период">
+      <button data-act="range" data-range="7" aria-pressed="${state.range === 7}">7 дней</button>
+      <button data-act="range" data-range="30" aria-pressed="${state.range === 30}">30 дней</button></div>
+    <div class="card sum"><span class="big">${st.length ? `${good} из ${st.length}` : '–'}</span>
+      <p>дней с отметками прошли без превышения лимитов</p></div>
+    <div class="stack">${list.map(h => statCard(h, days)).join('')}</div>`;
+}
+
+/* ---- Экран «Привычки» ---- */
+function viewHabits() {
+  const cnt = Store.trackedHabits().length;
+  return `<header class="head"><h1>Привычки</h1><p>Отслеживается ${cnt} из ${HABITS.length}</p></header>
+    <div class="list">${HABITS.map(h => {
+      const t = Store.data.tracked[h.id];
+      return `<button class="item" data-act="open" data-id="${h.id}" style="--h:${h.hue}">
+        <span class="bubble">${h.emoji}</span>
+        <span class="who-t"><b>${h.name}</b><small>${t ? (t.limit === 0 ? 'цель — ни разу' : `до ${fmt(h, t.limit)} в день`) : h.blurb}</small></span>
+        <span class="pill ${t ? 'on' : 'off'}">${t ? 'В списке' : 'Добавить'}</span></button>`;
+    }).join('')}</div>`;
+}
+
+const skeleton = () => `<div class="stack"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>`;
+
+function render(focus) {
+  $('#view').innerHTML = state.loading ? skeleton()
+    : { today: viewToday, stats: viewStats, habits: viewHabits }[state.tab]();
+  $('#nav').innerHTML = navHTML();
+  state.fresh = null;
+  if (focus) {
+    const el = document.querySelector(`[data-act="${focus.act}"][data-id="${focus.id}"]:not(:disabled)`);
+    if (el) el.focus({ preventScroll: true });
+  }
+}
+
+/* =====================================================================
+   Нижний лист: настройка лимита
+   ===================================================================== */
+function limitText(h, v) { return v === 0 ? 'Ни разу' : fmt(h, v); }
+
+function openSheet(id) {
+  const h = H[id], t = Store.data.tracked[id];
+  state.sheet = id;
+  state.draft = t ? t.limit : h.def;
+  const root = $('#sheet-root');
+  root.innerHTML = `<div class="open-wrap" id="sw">
+    <div class="scrim" data-act="close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="${h.name}" style="--h:${h.hue}">
+      <div class="grab"></div>
+      <div class="sheet-head"><span class="bubble">${h.emoji}</span>
+        <div><h2>${h.name}</h2><p>${h.blurb}</p></div></div>
+      <div class="field-label">Дневной лимит</div>
+      <div class="stepper">
+        <button class="rb" id="lim-minus" data-act="lim" data-d="-1" aria-label="Уменьшить лимит">−</button>
+        <output id="lim-out" aria-live="polite"></output>
+        <button class="rb" id="lim-plus" data-act="lim" data-d="1" aria-label="Увеличить лимит">+</button>
+      </div>
+      <p class="hint">Всё, что сверх лимита, будет отмечено красным. Ноль — если хотите совсем отказаться.</p>
+      <button class="btn primary" data-act="save">${t ? 'Сохранить' : 'Начать отслеживать'}</button>
+      ${t ? '<button class="btn ghost" data-act="untrack">Перестать отслеживать</button>' : ''}
+    </div></div>`;
+  updateLimit();
+  document.body.classList.add('locked');
+  requestAnimationFrame(() => requestAnimationFrame(() => $('#sw') && $('#sw').classList.add('open')));
+  try { if (ver('6.1')) tg.BackButton.show(); } catch {}
+  haptic.tap();
+}
+
+function updateLimit() {
+  const h = H[state.sheet];
+  $('#lim-out').textContent = limitText(h, state.draft);
+  $('#lim-minus').disabled = state.draft <= 0;
+  $('#lim-plus').disabled = state.draft >= h.max;
+  $('#lim-minus').style.opacity = state.draft <= 0 ? .35 : 1;
+  $('#lim-plus').style.opacity = state.draft >= h.max ? .35 : 1;
+}
+
+function closeSheet() {
+  const sw = $('#sw');
+  state.sheet = null;
+  document.body.classList.remove('locked');
+  try { if (ver('6.1')) tg.BackButton.hide(); } catch {}
+  if (!sw) return;
+  sw.classList.remove('open');
+  setTimeout(() => { if (!state.sheet) $('#sheet-root').innerHTML = ''; }, 260);
+}
+
+/* =====================================================================
+   Действия
+   ===================================================================== */
+function change(id, dir) {
+  const h = H[id], cur = Store.get(state.date, id);
+  if (dir > 0) {
+    const next = Math.min((cur || 0) + h.step, 9999), limit = Store.limit(id);
+    Store.set(state.date, id, next);
+    state.fresh = id;
+    (next > limit && (cur || 0) <= limit) ? haptic.warn() : haptic.tap();
+  } else {
+    if (!cur) return;
+    Store.set(state.date, id, Math.max(0, cur - h.step));
+    haptic.select();
+  }
+}
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const { act, id, date, tab, range, d } = el.dataset;
+  switch (act) {
+    case 'tab':   state.tab = tab; window.scrollTo(0, 0); render(); haptic.select(); break;
+    case 'day':   state.date = date; render(); haptic.select(); break;
+    case 'range': state.range = +range; render(); haptic.select(); break;
+    case 'inc':   change(id, 1);  render({ act, id }); break;
+    case 'dec':   change(id, -1); render({ act, id }); break;
+    case 'zero':  Store.set(state.date, id, 0); render(); haptic.ok(); break;
+    case 'open':  openSheet(id); break;
+    case 'close': closeSheet(); break;
+    case 'lim': {
+      const h = H[state.sheet];
+      state.draft = Math.min(h.max, Math.max(0, state.draft + (+d) * h.step));
+      updateLimit(); haptic.select(); break;
+    }
+    case 'save': {
+      const h = H[state.sheet];
+      Store.track(h.id, Math.min(state.draft, h.max));
+      closeSheet(); render(); haptic.ok(); break;
+    }
+    case 'untrack': {
+      const h = H[state.sheet];
+      confirmAsk(`Перестать отслеживать «${h.name}»? История отметок сохранится.`, () => {
+        Store.untrack(h.id); closeSheet(); render();
+      });
+      break;
+    }
+  }
+});
+
+/* Приложение могли оставить открытым до следующего дня */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  const now = dkey(new Date());
+  if (now !== state.today) {
+    if (state.date === state.today) state.date = now;
+    state.today = now;
+    render();
+  }
+});
+
+/* =====================================================================
+   Запуск
+   ===================================================================== */
+(async function main() {
+  initTelegram();
+  render();                 // скелетон
+  await Store.load();
+  state.loading = false;
+  render();
+})();
+</script>
+</body>
+</html>
